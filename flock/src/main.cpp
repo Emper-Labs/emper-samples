@@ -7,8 +7,8 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
-#include <random>
 #include <omp.h>
+#include <random>
 
 namespace
 {
@@ -45,6 +45,14 @@ constexpr float SeparationRadius  = 30.0f;
 constexpr float SeparationWeight = 5.0f;
 constexpr float AlignmentWeight  = 2.0f;
 constexpr float CohesionWeight   = 1.0f;
+
+constexpr std::size_t TeamCount = 3;
+
+constexpr emper::u32 TeamColors[TeamCount] = {
+    0xFF4D4DFF,
+    0x4DFF88FF,
+    0x4D8DFFFF
+};
 
 const char* const WindowTitle = "Emper Flock";
 
@@ -88,6 +96,7 @@ struct Boid
 {
     emper::Vec2 position;
     emper::Vec2 velocity;
+    std::size_t team = 0;
 
     static void onTick(
         emper::storage::StorageView<Boid>& boids,
@@ -110,6 +119,9 @@ void Boid::onTick(
 
     auto vel =
         boids.column<&Boid::velocity>();
+
+    auto team =
+        boids.column<&Boid::team>();
 
     const std::size_t count =
         boids.size();
@@ -212,7 +224,7 @@ void Boid::onTick(
             float cohesionX = 0.0f;
             float cohesionY = 0.0f;
 
-            std::size_t neighbors = 0;
+            std::size_t sameTeamNeighbors = 0;
 
 
             // ====================================================
@@ -222,7 +234,7 @@ void Boid::onTick(
             grid.query(
                 px,
                 py,
-                PerceptionRadius,64,
+                PerceptionRadius,24,
                 [&](std::size_t idx,
                     float dx,
                     float dy,
@@ -265,38 +277,38 @@ void Boid::onTick(
 
 
                     // =================================================
-                    // Alignment
+                    // Alignment (only with same team)
                     // =================================================
 
-                    alignmentX +=
-                        vel[idx].x;
+                    if (team[i] == team[idx])
+                    {
+                        alignmentX +=
+                            vel[idx].x;
 
-                    alignmentY +=
-                        vel[idx].y;
-
-
-                    // =================================================
-                    // Cohesion
-                    // =================================================
-
-                    cohesionX +=
-                        dx;
-
-                    cohesionY +=
-                        dy;
+                        alignmentY +=
+                            vel[idx].y;
 
 
-                    ++neighbors;
+                        // =================================================
+                        // Cohesion (only with same team)
+                        // =================================================
+
+                        cohesionX +=
+                            dx;
+
+                        cohesionY +=
+                            dy;
+
+                        ++sameTeamNeighbors;
+                    }
+
+
                 });
 
-
-            if (neighbors == 0)
-                continue;
-
-
-            const float invNeighbors =
-                1.0f /
-                static_cast<float>(neighbors);
+            const float invSameTeamNeighbors =
+                sameTeamNeighbors > 0
+                    ? 1.0f / static_cast<float>(sameTeamNeighbors)
+                    : 0.0f;
 
 
             // ========================================================
@@ -318,18 +330,21 @@ void Boid::onTick(
             // ALIGNMENT
             // ========================================================
 
-            alignmentX *=
-                invNeighbors;
+            if (sameTeamNeighbors > 0)
+            {
+                alignmentX *=
+                    invSameTeamNeighbors;
 
-            alignmentY *=
-                invNeighbors;
+                alignmentY *=
+                    invSameTeamNeighbors;
 
 
-            // Average neighbor velocity
-            // becomes desired velocity.
+                // Average neighbor velocity
+                // becomes desired velocity.
 
-            alignmentX -= vx;
-            alignmentY -= vy;
+                alignmentX -= vx;
+                alignmentY -= vy;
+            }
 
 
             emper::Vec2 alignment{
@@ -348,10 +363,10 @@ void Boid::onTick(
             // ========================================================
 
             cohesionX *=
-                invNeighbors;
+                invSameTeamNeighbors;
 
             cohesionY *=
-                invNeighbors;
+                invSameTeamNeighbors;
 
 
             emper::Vec2 cohesion{
@@ -605,7 +620,7 @@ void Boid::onTick(
     // ============================================================
     // RENDER
     // ============================================================
-   if (renderer && dt == 0.0f)
+    if (renderer && dt == 0.0f)
     {
         for (std::size_t i = 0;
              i < count;
@@ -613,7 +628,8 @@ void Boid::onTick(
         {
             renderer->drawPoint(
                 pos[i].x,
-                pos[i].y);
+                pos[i].y,
+                TeamColors[team[i]]);
         }
     }
 }
@@ -653,6 +669,7 @@ int main()
     world.registerType<Boid>()
         .field<&Boid::position>()
         .field<&Boid::velocity>()
+        .field<&Boid::team>()
         .onTick(Boid::onTick);
 
 
@@ -704,6 +721,10 @@ int main()
             std::cos(a) * InitialSpeed,
             std::sin(a) * InitialSpeed
         });
+
+        // BoidCount is divisible by TeamCount, so each flock is equal.
+        boid.set<&Boid::team>(
+            i % TeamCount);
     }
 
 
