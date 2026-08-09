@@ -1,6 +1,6 @@
 #include <emper/Emper_Engine.h>
 #include <Renderer.h>
-#include <flock.h>
+#include <Flock.h>
 
 int main()
 {
@@ -20,8 +20,9 @@ int main()
     world.addSystem(&flock);
 
     simulation.start();
-    while (simulation.tick())
+    while (simulation.isRunning())
     {
+        simulation.tick();
     }
 
     simulation.shutdown();
