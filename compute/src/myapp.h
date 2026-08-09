@@ -21,6 +21,6 @@ private:
     emper::backend::OpenGLComputeBackend backend_;
     emper::backend::SDLOpenGLRenderer renderer_;
     emper::backend::Compute compute_;
-    emper::compute::ProgramHandle graphicsProgram_ = 0;
+    emper::ProgramHandle graphicsProgram_ = 0;
 
 };

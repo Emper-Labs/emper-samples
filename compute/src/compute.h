@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ComputeTypes.h"
+#include <emper/ComputeTypes.h>
 #include <emper/Emper_Engine.h>
 
 #include <OpenGLComputeBackend.h>
