@@ -21,13 +21,14 @@ int main(int argc, char** argv)
     auto& world = simulation.world();
 
     emper::module::FlockConfig config;
-    config.mode = emper::interfaces::module::ComputeMode::GPU;
-    
-            /*
-            config.mode = emper::interfaces::module::ComputeMode::CPU;
-            CPUSetting
-            
-                config.boidCount = 100000;
+
+    //CPUSetting
+
+
+    config.mode = emper::interfaces::module::ComputeMode::CPU;
+
+
+    config.boidCount = 100000;
 
     config.worldWidth  = 1280.0f;
     config.worldHeight = 720.0f;
@@ -46,13 +47,12 @@ int main(int argc, char** argv)
     config.maxNeighbours = 64;
     config.teamCount = 3;
             
-            */
 
 
             /*
-            
-            GPU setting
-            */
+            //GPU setting
+                config.mode = emper::interfaces::module::ComputeMode::GPU;
+    
     config.boidCount = 100000;
 
     config.worldWidth  = 1280.0f;
@@ -71,6 +71,9 @@ int main(int argc, char** argv)
 
     config.maxNeighbours = 64;
     config.teamCount = 3;
+            */
+
+
 
 
     emper::module::Flock flock(world, config, &computeBackend);
