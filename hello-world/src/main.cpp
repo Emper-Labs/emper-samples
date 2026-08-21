@@ -10,6 +10,10 @@ struct Particle
     emper::f32 mass;
 };
 
+struct Other{
+    emper::f32 id; 
+};
+
 int main()
 {
     constexpr std::size_t Count = 10'000'000;
@@ -25,6 +29,9 @@ int main()
         .field<&Particle::velocity>()
         .field<&Particle::mass>();
 
+    world.registerType<Other>()
+        .field<&Other::id>();
+
     simulation.start();
 
     world.reserve<Particle>(Count);
@@ -33,7 +40,16 @@ int main()
     // Benchmark Create
     //----------------------------------------
 
+    std::cout << "(Before Create) count:" << world.objectCount() << std::endl;
+
     auto createBegin = std::chrono::high_resolution_clock::now();
+
+    world.create<Other>();
+
+    std::cout << "count:" << world.objectCount() << std::endl;
+
+
+
 
     for (std::size_t i = 0; i < Count; ++i)
     {
