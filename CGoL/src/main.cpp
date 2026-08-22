@@ -12,9 +12,12 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <chrono>
 
 constexpr std::size_t Width  = 2048;
 constexpr std::size_t Height = 2048;
+
+#define USE_RENDERER
 
 using namespace emper::module::cgol; 
 auto main() -> int
@@ -45,7 +48,7 @@ auto main() -> int
         "assets/patterns/turingmachine.rle"
     );
 
-    game.load(pattern);
+    game.load(pattern,100,100);
 
 
     //game.randomize(0.20f);
@@ -53,6 +56,7 @@ auto main() -> int
 
     world.addSystem(&game);
 
+#ifdef USE_RENDERER
     emper::backend::SDLOpenGLRenderer renderer(
         "Emper - CGoL",
         1920,
@@ -66,14 +70,46 @@ auto main() -> int
     }
 
     simulation.setRenderer(&renderer);
+
+#endif
+
     simulation.start();
+
+    using Clock = std::chrono::steady_clock;
+
+    auto lastTime = Clock::now();
+    std::size_t frames = 0;
 
     while (simulation.isRunning())
     {
+#ifdef USE_RENDERER
         if (!renderer.processEvents())
             break;
-
+#endif
         simulation.tick();
+
+        ++frames;
+
+        const auto now = Clock::now();
+
+        const double elapsed =
+            std::chrono::duration<double>(
+                now - lastTime
+            ).count();
+
+        if (elapsed >= 1.0)
+        {
+            const double fps =
+                static_cast<double>(frames) / elapsed;
+
+            std::cout
+                << "FPS: "
+                << fps
+                << '\n';
+
+            frames = 0;
+            lastTime = now;
+        }
     }
 
     simulation.shutdown();
