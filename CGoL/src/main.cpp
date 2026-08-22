@@ -48,7 +48,13 @@ auto main() -> int
         "assets/patterns/turingmachine.rle"
     );
 
-    game.load(pattern,100,100);
+    // pattern =
+    // emper::module::cgol::loadRLE(
+    //     "assets/patterns/gosperglidergun.rle"
+    // );
+
+
+    game.load(pattern,0,0);
 
 
     //game.randomize(0.20f);
@@ -86,7 +92,7 @@ auto main() -> int
         if (!renderer.processEvents())
             break;
 #endif
-        simulation.tick();
+        simulation.tick(0.1);
 
         ++frames;
 
