@@ -1,7 +1,12 @@
 add_executable(CGoL src/main.cpp)
 
 
-target_link_libraries(CGoL PRIVATE emper-engine emper-backend-opengl)
+target_link_libraries(
+        CGoL PRIVATE 
+        emper-engine 
+        emper-backend-opengl 
+        emper-module-CGoL
+        )
 
 add_custom_command(
     TARGET CGoL
