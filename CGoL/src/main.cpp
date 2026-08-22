@@ -1,27 +1,49 @@
 #include <emper/Emper_Engine.h>
-#include <emper/interfaces/module/ISystem.h>
 #include <emper/interfaces/backend/IRenderer.h>
-
+#include <emper/interfaces/module/ISystem.h>
 
 #include <SDLOpenGLRenderer.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cstdint>
-#include <iostream>
 #include <random>
 #include <vector>
 
+constexpr std::size_t Width  = 256;
+constexpr std::size_t Height = 144;
 
-namespace
+namespace emper::module::cgol
 {
 
-using Cell = std::uint8_t;
+using Cell = emper::i8;
 
-constexpr std::size_t Width  = 512;
-constexpr std::size_t Height = 512;
+struct CellCoordinate
+{
+    emper::i32 x;
+    emper::i32 y;
+};
 
-constexpr std::size_t CellCount = Width * Height;
+struct Pattern
+{
+    std::string name;
+
+    emper::i32 width  = 0;
+    emper::i32 height = 0;
+
+    std::vector<CellCoordinate> cells;
+};
+
+
+/*
+
+
+*/
+
+Pattern loadRLE(std::string path){
+
+
+
+};
 
 class GameOfLife
     : public emper::interfaces::module::ISystem
@@ -35,8 +57,8 @@ public:
     )
         : m_width(width)
         , m_height(height)
-        , m_current(width * height, 0)
-        , m_next(width * height, 0)
+        , m_current(width * height)
+        , m_next(width * height)
     {
     }
 
@@ -50,7 +72,6 @@ public:
         while (m_accumulator >= fixedStep)
         {
             step();
-
             m_accumulator -= fixedStep;
         }
     }
@@ -60,24 +81,13 @@ public:
         emper::interfaces::backend::IRenderer& renderer
     ) override
     {
-        const float width =
-            static_cast<float>(
-                renderer.windowWidth()
-            );
-
-        const float height =
-            static_cast<float>(
-                renderer.windowHeight()
-            );
-
         const float cellWidth =
-            width /
+            static_cast<float>(renderer.windowWidth()) /
             static_cast<float>(m_width);
 
         const float cellHeight =
-            height /
+            static_cast<float>(renderer.windowHeight()) /
             static_cast<float>(m_height);
-
 
         for (std::size_t y = 0; y < m_height; ++y)
         {
@@ -86,17 +96,11 @@ public:
                 if (!m_current[y * m_width + x])
                     continue;
 
-                const float px =
-                    (static_cast<float>(x) + 0.5f)
-                    * cellWidth;
-
-                const float py =
-                    (static_cast<float>(y) + 0.5f)
-                    * cellHeight;
-
-                renderer.drawPoint(
-                    px,
-                    py,
+                renderer.drawRect(
+                    static_cast<float>(x) * cellWidth,
+                    static_cast<float>(y) * cellHeight,
+                    cellWidth,
+                    cellHeight,
                     0xFFFFFFFF
                 );
             }
@@ -113,70 +117,45 @@ public:
 
     void randomize(float probability = 0.15f)
     {
-        std::mt19937 rng{
-            std::random_device{}()
-        };
-
+        std::mt19937 rng{std::random_device{}()};
         std::bernoulli_distribution alive(probability);
 
         for (auto& cell : m_current)
-            cell = alive(rng) ? 1 : 0;
+            cell = alive(rng);
     }
 
+
+    void load(const Pattern& pattern)
+    {
+        clear();
+
+        for (const auto& cell : pattern.cells)
+        {
+            if (cell.x < 0 || cell.y < 0)
+                continue;
+
+            const auto x =
+                static_cast<std::size_t>(cell.x);
+
+            const auto y =
+                static_cast<std::size_t>(cell.y);
+
+            if (x >= m_width || y >= m_height)
+                continue;
+
+            m_current[
+                y * m_width + x
+            ] = 1;
+        }
+    }
 
     void clear()
     {
-        std::fill(
-            m_current.begin(),
-            m_current.end(),
-            0
-        );
-
-        m_next.clear();
-        m_next.resize(m_width * m_height);
+        std::fill(m_current.begin(), m_current.end(), 0);
+        std::fill(m_next.begin(), m_next.end(), 0);
 
         m_generation = 0;
         m_accumulator = 0.0f;
-    }
-
-
-    Cell cell(
-        std::size_t x,
-        std::size_t y
-    ) const
-    {
-        return m_current[
-            y * m_width + x
-        ];
-    }
-
-
-    std::size_t generation() const
-    {
-        return m_generation;
-    }
-
-
-    std::size_t aliveCount() const
-    {
-        std::size_t count = 0;
-
-        for (const auto cell : m_current)
-            count += cell != 0;
-
-        return count;
-    }
-
-
-    std::size_t width() const
-    {
-        return m_width;
-    }
-
-
-    std::size_t height() const
-    {
-        return m_height;
     }
 
 
@@ -199,13 +178,12 @@ private:
 
                 m_next[index] =
                     alive
-                        ? (neighbors == 2 || neighbors == 3)
-                        : (neighbors == 3);
+                        ? neighbors == 2 || neighbors == 3
+                        : neighbors == 3;
             }
         }
 
         m_current.swap(m_next);
-
         ++m_generation;
     }
 
@@ -224,16 +202,14 @@ private:
                 if (dx == 0 && dy == 0)
                     continue;
 
-                const std::size_t nx =
+                const auto nx =
                     (x + m_width + dx) % m_width;
 
-                const std::size_t ny =
+                const auto ny =
                     (y + m_height + dy) % m_height;
 
                 count +=
-                    m_current[
-                        ny * m_width + nx
-                    ];
+                    m_current[ny * m_width + nx];
             }
         }
 
@@ -250,46 +226,54 @@ private:
     std::vector<Cell> m_next;
 
     std::size_t m_generation = 0;
-
     float m_accumulator = 0.0f;
 };
 
 }
 
+
+using namespace emper::module::cgol; 
 auto main() -> int
 {
     emper::Simulation simulation;
-
     simulation.initialize();
 
     auto& world = simulation.world();
 
-    GameOfLife game(
-        Width,
-        Height
-    );
+    GameOfLife game(Width, Height);
+    
+    Pattern pattern;
 
+    pattern.name = "Glider";
+    pattern.width = 3;
+    pattern.height = 3;
+
+    pattern.cells = {
+        {1, 0},
+        {2, 1},
+        {0, 2},
+        {1, 2},
+        {2, 2}
+    };
+    
     game.randomize(0.20f);
+    //game.load(pattern);
 
     world.addSystem(&game);
 
     emper::backend::SDLOpenGLRenderer renderer(
-        "Emper - Conway's Game of Life",
-        1024,
-        1024
+        "Emper - CGoL",
+        1920,
+        1080
     );
-
-    simulation.setRenderer(&renderer);
 
     if (!renderer.isValid())
     {
-        std::cerr
-            << "Failed to initialize OpenGL renderer\n";
-
         simulation.shutdown();
         return 1;
     }
 
+    simulation.setRenderer(&renderer);
     simulation.start();
 
     while (simulation.isRunning())
@@ -301,6 +285,5 @@ auto main() -> int
     }
 
     simulation.shutdown();
-
     return 0;
 }
