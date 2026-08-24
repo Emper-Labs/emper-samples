@@ -13,9 +13,10 @@
 #include <stdexcept>
 #include <string>
 #include <chrono>
+#include <iostream>
 
-constexpr std::size_t Width  = 2048;
-constexpr std::size_t Height = 2048;
+constexpr std::size_t Width  = 2000;
+constexpr std::size_t Height = 2000;
 
 #define USE_RENDERER
 
@@ -54,13 +55,15 @@ auto main() -> int
     // );
 
 
-    game.load(pattern,0,0);
+    game.load(pattern,100,100);
 
 
     //game.randomize(0.20f);
     //game.load(pattern);
 
-    world.addSystem(&game);
+    simulation.addSystem(game);
+
+    //world.addSystem(&game); ////old api
 
 #ifdef USE_RENDERER
     emper::backend::SDLOpenGLRenderer renderer(
@@ -75,7 +78,7 @@ auto main() -> int
         return 1;
     }
 
-    simulation.setRenderer(&renderer);
+    simulation.setRenderer(renderer);
 
 #endif
 

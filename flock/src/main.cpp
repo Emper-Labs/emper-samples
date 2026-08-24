@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 
     emper::backend::OpenGLComputeBackend computeBackend;
     emper::backend::SDLOpenGLRenderer renderer("Emper Flock", 1280, 720);
-    simulation.setRenderer(&renderer);
+    simulation.setRenderer(renderer);
 
     auto& world = simulation.world();
 
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 
 
     emper::module::Flock flock(world, config, &computeBackend);
-    world.addSystem(&flock);
+    simulation.addSystem(flock);
 
     simulation.start();
     while (simulation.isRunning())
