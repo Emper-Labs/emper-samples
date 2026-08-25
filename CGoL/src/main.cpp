@@ -23,7 +23,7 @@ constexpr std::size_t Height = 2000;
 using namespace emper::module::cgol; 
 auto main() -> int
 {
-    emper::Simulation simulation;
+    emper::simulation::Simulation simulation;
     simulation.initialize();
 
     auto& world = simulation.world();

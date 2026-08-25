@@ -18,7 +18,7 @@ int main()
 {
     constexpr std::size_t Count = 10'000'000;
 
-    emper::Simulation simulation;
+    emper::simulation::Simulation simulation;
 
     simulation.initialize();
 
