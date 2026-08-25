@@ -1,4 +1,7 @@
-add_executable(flock src/main.cpp)
+add_executable(flock
+    src/main.cpp
+    src/FlockRenderPass.cpp
+)
 
 set(FLOCK_SHADER_ASSETS
     ${CMAKE_CURRENT_SOURCE_DIR}/../../emper-modules/flock/assets/shaders/flock_comp.comp

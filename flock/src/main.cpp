@@ -7,6 +7,8 @@
 #include <SDLOpenGLRenderer.h>
 #include <Flock.h>
 
+#include "FlockRenderPass.h"
+
 #include <imgui.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -233,6 +235,14 @@ int main(int argc, char** argv)
     );
 
     simulation.addSystem(flock);
+
+
+    emper::sample::FlockRenderPass flockRenderPass(
+        flock,
+        renderer
+    );
+
+    simulation.addRenderPass(flockRenderPass);
 
 
     MyImGuiPass imguiPass(renderer);
