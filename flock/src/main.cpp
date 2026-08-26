@@ -204,10 +204,10 @@ int main(int argc, char** argv)
     emper::module::FlockConfig config;
 
     /*
-     * CPU 
+     * Mode
      */
     config.mode =
-        emper::interfaces::module::ComputeMode::CPU;
+        emper::interfaces::module::ComputeMode::GPU;
 
     config.boidCount = 100000;
 

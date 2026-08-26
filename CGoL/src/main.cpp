@@ -95,7 +95,7 @@ auto main() -> int
         if (!renderer.processEvents())
             break;
 #endif
-        simulation.tick(0.1);
+        simulation.tick();
 
         ++frames;
 
