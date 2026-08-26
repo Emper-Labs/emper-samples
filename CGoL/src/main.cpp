@@ -4,6 +4,8 @@
 
 #include <SDLOpenGLRenderer.h>
 #include <CGoLCPUScalar.h>
+#include <CGoLCPUPacked.h>
+#include <CGoLCPUSparse.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -15,10 +17,8 @@
 #include <chrono>
 #include <iostream>
 
-constexpr std::size_t Width  = 2000;
-constexpr std::size_t Height = 2000;
-
 #define USE_RENDERER
+//#define FIXED
 
 using namespace emper::module::cgol; 
 auto main() -> int
@@ -28,8 +28,7 @@ auto main() -> int
 
     auto& world = simulation.world();
 
-    GameOfLifeCPUScalar game(Width, Height);
-    
+
     Pattern pattern;
 
     // pattern.name = "Glider";
@@ -43,17 +42,30 @@ auto main() -> int
     //     {1, 2},
     //     {2, 2}
     // };
-    
+
+    std::string rle = "assets/patterns/universalturingmachine.rle";
+
     pattern =
     emper::module::cgol::loadRLE(
-        "assets/patterns/turingmachine.rle"
+        rle
     );
+
+    const std::size_t width = ((pattern.width + 128 + 63) / 64) * 64;
+    const std::size_t height = ((pattern.height + 128 + 63) / 64) * 64;
+
+    std::cout << " w:" <<  width << " h:" <<height << " rle:" << rle << "\n";
+
+
 
     // pattern =
     // emper::module::cgol::loadRLE(
     //     "assets/patterns/gosperglidergun.rle"
     // );
 
+
+    //GameOfLifeCPUScalar game(width, height);
+    //GameOfLifeCPUPacked game(width, height);
+    GameOfLifeCPUSparse game(width, height);
 
     game.load(pattern,100,100);
 
@@ -95,7 +107,14 @@ auto main() -> int
         if (!renderer.processEvents())
             break;
 #endif
-        simulation.tick();
+
+#ifdef FIXED
+        simulation.tick(1);
+#else
+
+ simulation.tick();
+#endif
+
 
         ++frames;
 
