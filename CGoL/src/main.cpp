@@ -3,7 +3,7 @@
 #include <emper/interfaces/module/ISystem.h>
 
 #include <SDLOpenGLRenderer.h>
-#include <CGoL.h>
+#include <CGoLCPUScalar.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -28,7 +28,7 @@ auto main() -> int
 
     auto& world = simulation.world();
 
-    GameOfLife game(Width, Height);
+    GameOfLifeCPUScalar game(Width, Height);
     
     Pattern pattern;
 
