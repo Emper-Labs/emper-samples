@@ -7,6 +7,8 @@
 #include <CGoLCPUPacked.h>
 #include <CGoLCPUSparse.h>
 
+#include "GameOfLifeRenderPass.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <random>
@@ -18,10 +20,10 @@
 #include <iostream>
 
 #define USE_RENDERER
-//#define FIXED
+#define FIXED 0
 
 using namespace emper::module::cgol; 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
     emper::simulation::Simulation simulation;
     simulation.initialize();
@@ -43,7 +45,10 @@ auto main() -> int
     //     {2, 2}
     // };
 
-    std::string rle = "assets/patterns/universalturingmachine.rle";
+    std::string rle = "assets/patterns/gemini.rle";
+
+    if (argc > 1)
+        rle = argv[1];
 
     pattern =
     emper::module::cgol::loadRLE(
@@ -53,7 +58,7 @@ auto main() -> int
     const std::size_t width = ((pattern.width + 128 + 63) / 64) * 64;
     const std::size_t height = ((pattern.height + 128 + 63) / 64) * 64;
 
-    std::cout << " w:" <<  width << " h:" <<height << " rle:" << rle << "\n";
+    std::cout << " w:" <<  width << " h:" <<height << " rle:" << rle <<  " cell cnt:"<< pattern.cells.size()<<"\n";
 
 
 
@@ -63,6 +68,10 @@ auto main() -> int
     // );
 
 
+    // The CGoL module is simulation-only and exposes its state through data().
+    // Each backend reports GameOfLifeData::aliveCells (a read-only list of live
+    // cells) with the same complexity as its native iteration — Sparse/Packed
+    // are O(live cells), Scalar is O(grid). No full-grid densification occurs.
     //GameOfLifeCPUScalar game(width, height);
     //GameOfLifeCPUPacked game(width, height);
     GameOfLifeCPUSparse game(width, height);
@@ -92,6 +101,18 @@ auto main() -> int
 
     simulation.setRenderer(renderer);
 
+    // The simulation runs entirely through the system manager, while
+    // visualization is performed by the render pass (which consumes the
+    // simulation state via game.data()).
+    emper::sample::GameOfLifeRenderPass renderPass(
+        [&game]() -> emper::module::cgol::GameOfLifeData
+        {
+            return game.data();
+        }
+    );
+
+    simulation.addRenderPass(renderPass);
+
 #endif
 
     simulation.start();
@@ -108,13 +129,11 @@ auto main() -> int
             break;
 #endif
 
-#ifdef FIXED
-        simulation.tick(1);
-#else
-
- simulation.tick();
-#endif
-
+if constexpr (FIXED != 0) {
+    simulation.tick(FIXED);
+} else {
+    simulation.tick();
+}
 
         ++frames;
 

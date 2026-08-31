@@ -1,4 +1,7 @@
-add_executable(CGoL src/main.cpp)
+add_executable(CGoL
+    src/main.cpp
+    src/GameOfLifeRenderPass.cpp
+)
 
 
 target_link_libraries(
