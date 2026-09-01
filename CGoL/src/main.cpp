@@ -1,4 +1,4 @@
-#include <emper/Emper_Engine.h>
+#include <emper/EmperEngine.h>
 #include <emper/interfaces/backend/IRenderer.h>
 #include <emper/interfaces/module/ISystem.h>
 

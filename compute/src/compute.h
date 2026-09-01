@@ -1,7 +1,7 @@
 #pragma once
 
 #include <emper/ComputeTypes.h>
-#include <emper/Emper_Engine.h>
+#include <emper/EmperEngine.h>
 
 #include <OpenGLComputeBackend.h>
 

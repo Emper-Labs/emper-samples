@@ -7,7 +7,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
-#include <emper/Emper_Engine.h>
+#include <emper/EmperEngine.h>
 
 namespace emper::backend
 {
