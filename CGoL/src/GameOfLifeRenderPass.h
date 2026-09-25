@@ -54,7 +54,8 @@ public:
         std::function<module::cgol::GameOfLifeData()>;
 
     explicit GameOfLifeRenderPass(
-        DataSource dataSource);
+        DataSource dataSource,
+        interfaces::backend::IRenderer& renderer);
 
     ~GameOfLifeRenderPass() override;
 
@@ -66,8 +67,22 @@ public:
     ) override;
 
 private:
+    // Consumes native events forwarded by the renderer. The payload is opaque
+    // here (const void*); the implementation casts it to a backend event (SDL)
+    // so the header stays backend-agnostic.
+    void handleNativeEvent(const void* nativeEvent);
+
     DataSource dataSource_;
     CGoLCamera camera_;
+
+    interfaces::backend::IRenderer& renderer_;
+
+    interfaces::behavior::INativeEventSource* eventSource_ = nullptr;
+
+    bool mouseDragging_ = false;
+    Vec2 lastMouse_{0.0f, 0.0f};
+
+    bool cameraInitialized_ = false;
 };
 
 } // namespace emper::sample

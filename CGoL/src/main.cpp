@@ -45,7 +45,7 @@ auto main(int argc, char** argv) -> int
     //     {2, 2}
     // };
 
-    std::string rle = "assets/patterns/gemini.rle";
+    std::string rle = "assets/patterns/digital_clock.rle";
 
     if (argc > 1)
         rle = argv[1];
@@ -108,7 +108,8 @@ auto main(int argc, char** argv) -> int
         [&game]() -> emper::module::cgol::GameOfLifeData
         {
             return game.data();
-        }
+        },
+        renderer
     );
 
     simulation.addRenderPass(renderPass);

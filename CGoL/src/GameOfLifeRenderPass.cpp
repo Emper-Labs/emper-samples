@@ -1,5 +1,10 @@
 #include "GameOfLifeRenderPass.h"
 
+#include <SDL3/SDL.h>
+
+#include <cmath>
+#include <algorithm>
+
 namespace emper::sample
 {
 
@@ -54,13 +59,107 @@ void CGoLCamera::zoomAt(
 }
 
 GameOfLifeRenderPass::GameOfLifeRenderPass(
-    DataSource dataSource)
+    DataSource dataSource,
+    interfaces::backend::IRenderer& renderer)
     : dataSource_(std::move(dataSource)),
-      camera_()
+      camera_(),
+      renderer_(renderer)
 {
+    // Register as a consumer of the renderer's native (SDL) events so the
+    // mouse can drive the camera: left-drag to pan, wheel to zoom.
+    auto* eventSource =
+        dynamic_cast<interfaces::behavior::INativeEventSource*>(
+            &renderer_);
+
+    if (eventSource)
+    {
+        eventSource_ = eventSource;
+
+        // capture `this` in the member callback so camera_ state is updated
+        eventSource_->setEventCallback(
+            [this](const void* nativeEvent)
+            {
+                handleNativeEvent(nativeEvent);
+            }
+        );
+    }
 }
 
-GameOfLifeRenderPass::~GameOfLifeRenderPass() = default;
+GameOfLifeRenderPass::~GameOfLifeRenderPass()
+{
+    // Detach from the event source so we never forward events to a destroyed
+    // pass. Only clear the callback if it is still ours.
+    if (eventSource_)
+    {
+        eventSource_->setEventCallback(nullptr);
+        eventSource_ = nullptr;
+    }
+}
+
+void GameOfLifeRenderPass::handleNativeEvent(
+    const void* nativeEvent)
+{
+    if (!eventSource_ || !nativeEvent)
+        return;
+
+    const auto* event = static_cast<const SDL_Event*>(nativeEvent);
+
+    switch (event->type)
+    {
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        if (event->button.button == SDL_BUTTON_LEFT)
+        {
+            mouseDragging_ = true;
+            lastMouse_ = {
+                event->button.x,
+                event->button.y
+            };
+        }
+        break;
+
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        if (event->button.button == SDL_BUTTON_LEFT)
+            mouseDragging_ = false;
+        break;
+
+    case SDL_EVENT_MOUSE_MOTION:
+        if (mouseDragging_)
+        {
+            const Vec2 current = {
+                event->motion.x,
+                event->motion.y
+            };
+
+            camera_.pan({
+                lastMouse_.x - current.x,
+                lastMouse_.y - current.y
+            });
+            
+            lastMouse_ = current;
+        }
+        break;
+
+    case SDL_EVENT_MOUSE_WHEEL:
+    {
+        // Scroll up (positive Y, away from user) zooms in.
+        const float factor = std::pow(1.1f, event->wheel.y);
+
+        camera_.zoomAt(
+            {
+                event->wheel.mouse_x,
+                event->wheel.mouse_y
+            },
+            factor,
+            static_cast<float>(renderer_.windowWidth()),
+            static_cast<float>(renderer_.windowHeight())
+        );
+        break;
+    }
+
+    default:
+        break;
+    }
+}
 
 void GameOfLifeRenderPass::render(
     interfaces::render_pass::RenderPassContext& context)
@@ -75,43 +174,95 @@ void GameOfLifeRenderPass::render(
     if (data.width == 0 || data.height == 0 || data.aliveCells.empty())
         return;
 
-    const float cellWidth =
-        static_cast<float>(renderer.windowWidth()) /
-        static_cast<float>(data.width);
+    const float screenW =
+        static_cast<float>(renderer.windowWidth());
 
-    const float cellHeight =
-        static_cast<float>(renderer.windowHeight()) /
-        static_cast<float>(data.height);
+    const float screenH =
+        static_cast<float>(renderer.windowHeight());
 
-    const bool subpixel =
-        cellWidth < 1.0f ||
-        cellHeight < 1.0f;
+    // First time we see the data, fit the camera over the live-cell bounding
+    // box so the pattern is visible before the user takes over with the mouse.
+    if (!cameraInitialized_)
+    {
+        float minX = static_cast<float>(data.aliveCells[0].x);
+        float maxX = minX;
+        float minY = static_cast<float>(data.aliveCells[0].y);
+        float maxY = minY;
+
+        for (const auto cell : data.aliveCells)
+        {
+            const float fx = static_cast<float>(cell.x);
+            const float fy = static_cast<float>(cell.y);
+
+            minX = std::min(minX, fx);
+            maxX = std::max(maxX, fx);
+            minY = std::min(minY, fy);
+            maxY = std::max(maxY, fy);
+        }
+
+        camera_.position = {
+            (minX + maxX) * 0.5f,
+            (minY + maxY) * 0.5f
+        };
+
+        const float fitW = (maxX - minX) + 4.0f;
+        const float fitH = (maxY - minY) + 4.0f;
+
+        camera_.zoom = std::clamp(
+            std::min(
+                screenW / fitW,
+                screenH / fitH
+            ),
+            0.05f,
+            1000.0f
+        );
+
+        cameraInitialized_ = true;
+    }
+
+    // A live cell is a 1x1 (world-unit) rectangle. The camera maps grid/world
+    // coordinates to screen pixels, so the on-screen cell size is exactly one
+    // world unit times the zoom factor.
+    const float cellSize = camera_.zoom;
 
     // Iterate only the live cells (O(live cells)), exactly as the original
-    // per-backend render loops did. We never scan the full grid here.
+    // per-backend render loops did. We never scan the full grid here. Cells
+    // fully outside the view frustum are skipped (cheap manual clip).
     for (const auto cell : data.aliveCells)
     {
-        const float screenX =
-            static_cast<float>(cell.x) * cellWidth;
+        const Vec2 origin = camera_.worldToScreen(
+            {
+                static_cast<float>(cell.x),
+                static_cast<float>(cell.y)
+            },
+            screenW,
+            screenH
+        );
 
-        const float screenY =
-            static_cast<float>(cell.y) * cellHeight;
-
-        if (subpixel)
+        if (origin.x > screenW ||
+            origin.y > screenH ||
+            origin.x + cellSize < 0.0f ||
+            origin.y + cellSize < 0.0f)
         {
+            continue;
+        }
+
+        if (cellSize < 1.0f)
+        {
+            // Sub-pixel cell: render a single point at the cell center.
             renderer.drawPoint(
-                screenX,
-                screenY,
+                origin.x + cellSize * 0.5f,
+                origin.y + cellSize * 0.5f,
                 0xFFFFFFFF
             );
         }
         else
         {
             renderer.drawRect(
-                screenX,
-                screenY,
-                cellWidth,
-                cellHeight,
+                origin.x,
+                origin.y,
+                cellSize,
+                cellSize,
                 0xFFFFFFFF
             );
         }
