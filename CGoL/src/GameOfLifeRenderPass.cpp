@@ -3,9 +3,60 @@
 namespace emper::sample
 {
 
+Vec2 CGoLCamera::worldToScreen(
+    Vec2 world,
+    float screenWidth,
+    float screenHeight) const
+{
+    return {
+        (world.x - position.x) * zoom + screenWidth * 0.5f,
+        (world.y - position.y) * zoom + screenHeight * 0.5f
+    };
+}
+
+Vec2 CGoLCamera::screenToWorld(
+    Vec2 screen,
+    float screenWidth,
+    float screenHeight) const
+{
+    return {
+        (screen.x - screenWidth * 0.5f) / zoom + position.x,
+        (screen.y - screenHeight * 0.5f) / zoom + position.y
+    };
+}
+
+void CGoLCamera::pan(Vec2 delta)
+{
+    position.x += delta.x / zoom;
+    position.y += delta.y / zoom;
+}
+
+void CGoLCamera::zoomAt(
+    Vec2 screenPosition,
+    float factor,
+    float screenWidth,
+    float screenHeight)
+{
+    const Vec2 before = screenToWorld(screenPosition, screenWidth, screenHeight);
+
+    zoom *= factor;
+
+    if (zoom < 0.01f)
+        zoom = 0.01f;
+
+    if (zoom > 1000.0f)
+        zoom = 1000.0f;
+
+    const Vec2 after = screenToWorld(screenPosition, screenWidth, screenHeight);
+
+    position.x += before.x - after.x;
+    position.y += before.y - after.y;
+}
+
 GameOfLifeRenderPass::GameOfLifeRenderPass(
     DataSource dataSource)
-    : dataSource_(std::move(dataSource))
+    : dataSource_(std::move(dataSource)),
+      camera_()
 {
 }
 
@@ -67,10 +118,10 @@ void GameOfLifeRenderPass::render(
     }
 
     renderer.drawText(
-        "Conway's Game of Life",
+        std::to_string(data.aliveCells.size()) + " cells, " + std::to_string(data.generation) + " generations",
         10.0f,
         10.0f,
-        20.0f
+        15.0f
     );
 }
 

@@ -10,6 +10,30 @@
 namespace emper::sample
 {
 
+//test cam before we bring to engine
+struct CGoLCamera
+{
+    Vec2 position{0.0f, 0.0f};
+    float zoom = 10.0f;
+
+    Vec2 worldToScreen(
+        Vec2 world,
+        float screenWidth,
+        float screenHeight) const;
+
+    Vec2 screenToWorld(
+        Vec2 screen,
+        float screenWidth,
+        float screenHeight) const;
+
+    void pan(Vec2 delta);
+    void zoomAt(
+        Vec2 screenPosition,
+        float factor,
+        float screenWidth,
+        float screenHeight);
+};
+
 // Visualization pass for the Game of Life simulation. This lives in the
 // application/rendering layer (NOT inside the simulation-only
 // emper-module-CGoL). It consumes the renderer-neutral GameOfLifeData produced
@@ -43,6 +67,7 @@ public:
 
 private:
     DataSource dataSource_;
+    CGoLCamera camera_;
 };
 
 } // namespace emper::sample
