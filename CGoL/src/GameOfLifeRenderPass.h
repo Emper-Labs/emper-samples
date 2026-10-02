@@ -72,6 +72,13 @@ private:
     // so the header stays backend-agnostic.
     void handleNativeEvent(const void* nativeEvent);
 
+    // GPU path (mode == GPU): binds the simulation's GPU grid buffers to the
+    // renderer's shader pipeline and draws the whole grid without any host
+    // readback. CPU path (mode == CPU) stays in render() using aliveCells.
+    void renderGpu(
+        const module::cgol::GameOfLifeData& data,
+        interfaces::backend::IRenderer& renderer);
+
     DataSource dataSource_;
     CGoLCamera camera_;
 
@@ -83,6 +90,11 @@ private:
     Vec2 lastMouse_{0.0f, 0.0f};
 
     bool cameraInitialized_ = false;
+
+    // GPU graphics program (vertex + fragment shaders), lazily created on the
+    // first GPU render and owned/destroyed by this pass.
+    interfaces::backend::IRendererShaderPipeline* pipeline_ = nullptr;
+    emper::ProgramHandle graphicsProgram_ = 0;
 };
 
 } // namespace emper::sample

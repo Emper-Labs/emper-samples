@@ -94,6 +94,13 @@ GameOfLifeRenderPass::~GameOfLifeRenderPass()
         eventSource_->setEventCallback(nullptr);
         eventSource_ = nullptr;
     }
+
+    if (graphicsProgram_ && pipeline_)
+    {
+        pipeline_->destroyProgram(graphicsProgram_);
+        graphicsProgram_ = 0;
+        pipeline_ = nullptr;
+    }
 }
 
 void GameOfLifeRenderPass::handleNativeEvent(
@@ -170,6 +177,14 @@ void GameOfLifeRenderPass::render(
         return;
 
     const auto data = dataSource_();
+
+    // GPU mode renders from the raw GPU grid buffers (no host readback); the
+    // CPU/camera path below only applies to the CPU backends' aliveCells list.
+    if (data.mode == module::cgol::GameOfLifeDataMode::GPU)
+    {
+        renderGpu(data, renderer);
+        return;
+    }
 
     if (data.width == 0 || data.height == 0 || data.aliveCells.empty())
         return;
@@ -270,6 +285,46 @@ void GameOfLifeRenderPass::render(
 
     renderer.drawText(
         std::to_string(data.aliveCells.size()) + " cells, " + std::to_string(data.generation) + " generations",
+        10.0f,
+        10.0f,
+        15.0f
+    );
+}
+
+void GameOfLifeRenderPass::renderGpu(
+    const module::cgol::GameOfLifeData& data,
+    interfaces::backend::IRenderer& renderer)
+{
+    if (data.gridBuffer == 0 || data.renderConfigBuffer == 0)
+        return;
+
+    if (!pipeline_)
+    {
+        auto* pipeline = dynamic_cast<
+            interfaces::backend::IRendererShaderPipeline*>(&renderer);
+
+        if (!pipeline)
+            return;
+
+        pipeline_ = pipeline;
+        graphicsProgram_ = pipeline_->createGraphicsProgram(
+            "assets/shaders/cgol_ver.ver",
+            "assets/shaders/cgol_frag.frag");
+
+        if (!graphicsProgram_)
+            return;
+    }
+
+    // Draw one vertex per grid cell directly from the GPU state buffers. The
+    // vertex shader hides dead cells (transparent), so we never need the host
+    // to read the grid back to know how many live cells to draw.
+    pipeline_->bindProgram(graphicsProgram_);
+    pipeline_->bindStorageBuffer(0, data.gridBuffer);
+    pipeline_->bindStorageBuffer(1, data.renderConfigBuffer);
+    pipeline_->drawPoints(static_cast<u32>(data.width * data.height));
+
+    renderer.drawText(
+        std::to_string(data.generation) + " generations (GPU)",
         10.0f,
         10.0f,
         15.0f
