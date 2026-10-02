@@ -274,6 +274,80 @@ void ParticleRenderPass::drawWorld(
     }
 }
 
+void ParticleRenderPass::drawVectorArrow(
+    interfaces::backend::IRenderer& renderer,
+    f32 screenW,
+    f32 screenH,
+    const Vec3& worldPos,
+    const Vec2& body,
+    f32 padRadius,
+    const Vec3& vector,
+    u32 color)
+{
+    const f32 mag = std::hypot(vector.x, vector.y, vector.z);
+    if (mag <= 0.001f)
+        return;
+
+    // World-scaled arrow length (length in world units per velocity unit).
+    const f32 kScale = 2.5f;
+    const f32 lenWorld = std::clamp(mag * kScale, 0.0f, 4.0f);
+
+    Vec2 tip;
+    if (!camera_.project(
+            {
+                worldPos.x + vector.x / mag * lenWorld,
+                worldPos.y + vector.y / mag * lenWorld,
+                worldPos.z + vector.z / mag * lenWorld
+            },
+            screenW,
+            screenH,
+            tip))
+    {
+        return;
+    }
+
+    f32 dx = tip.x - body.x;
+    f32 dy = tip.y - body.y;
+    f32 lenS = std::hypot(dx, dy);
+    if (lenS <= 1.0f)
+        return;
+
+    // Guarantee the arrow is always clearly visible on screen.
+    const f32 minLen = 26.0f;
+    if (lenS < minLen)
+    {
+        const f32 k = minLen / lenS;
+        dx *= k;
+        dy *= k;
+        lenS = minLen;
+        tip.x = body.x + dx;
+        tip.y = body.y + dy;
+    }
+
+    const f32 ux = dx / lenS;
+    const f32 uy = dy / lenS;
+    const f32 px = -uy; // screen-perpendicular
+    const f32 py = ux;
+
+    // Shaft starts at the particle's circle edge.
+    const f32 startPad = std::clamp(padRadius, 2.0f, lenS * 0.45f);
+    const f32 sx = body.x + ux * startPad;
+    const f32 sy = body.y + uy * startPad;
+
+    const f32 headLen = std::clamp(lenS * 0.3f, 6.0f, 22.0f);
+    const f32 bx = sx + ux * (lenS - startPad - headLen);
+    const f32 by = sy + uy * (lenS - startPad - headLen);
+    const f32 headHalf = headLen * 0.45f;
+
+    renderer.drawLine(sx, screenH - sy, bx, screenH - by, color);
+    renderer.drawLine(
+        bx + px * headHalf, screenH - (by + py * headHalf),
+        tip.x, screenH - tip.y, color);
+    renderer.drawLine(
+        bx - px * headHalf, screenH - (by - py * headHalf),
+        tip.x, screenH - tip.y, color);
+}
+
 void ParticleRenderPass::render(
     interfaces::render_pass::RenderPassContext& context)
 {
@@ -288,7 +362,8 @@ void ParticleRenderPass::render(
     drawWorld(renderer, screenW, screenH);
 
     const u32 bodyColor = 0xFF8FBFFF;
-    const u32 tailColor = 0xFFCCD0FF;
+    const u32 arrowColor = 0xFFA000FF; // orange: velocity
+    const u32 accelColor = 0xFFFF00FF; // magenta: acceleration
 
     for (std::size_t i = 0; i < particles.size(); ++i)
     {
@@ -322,25 +397,45 @@ void ParticleRenderPass::render(
 
         renderer.drawCircle(body.x, body.y, radius, bodyColor);
 
-        // 3D velocity tail.
-        Vec2 tip;
-        if (camera_.project(
-                {
-                    p.position.x + p.velocity.x * 0.5f,
-                    p.position.y + p.velocity.y * 0.5f,
-                    p.position.z + p.velocity.z * 0.5f
-                },
-                screenW,
-                screenH,
-                tip))
-        {
-            renderer.drawLine(
-                body.x, screenH - body.y,
-                tip.x, screenH - tip.y,
-                tailColor
-            );
-        }
+        // Velocity vector (orange).
+        drawVectorArrow(
+            renderer, screenW, screenH,
+            p.position, body, radius,
+            p.velocity, arrowColor
+        );
+
+        // Acceleration vector (magenta).
+        drawVectorArrow(
+            renderer, screenW, screenH,
+            p.position, body, radius,
+            p.acceleration, accelColor
+        );
     }
+
+    renderer.drawText(
+        std::to_string(particles.size()) + " particles | fov " +
+            std::to_string(static_cast<int>(camera_.fov)),
+        10.0f,
+        10.0f,
+        15.0f,
+        0xFFFFFFFF
+    );
+
+    renderer.drawText(
+        "orange: velocity | magenta: acceleration",
+        10.0f,
+        30.0f,
+        12.0f,
+        0xFFFFFFFF
+    );
+
+    renderer.drawText(
+        "left-drag orbit | right-drag pan | wheel zoom",
+        10.0f,
+        48.0f,
+        12.0f,
+        0xFFB0B0FF
+    );
 }
 
 } // namespace emper::sample

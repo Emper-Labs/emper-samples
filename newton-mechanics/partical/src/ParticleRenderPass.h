@@ -53,6 +53,16 @@ private:
         f32 screenW,
         f32 screenH);
 
+    void drawVectorArrow(
+        interfaces::backend::IRenderer& renderer,
+        f32 screenW,
+        f32 screenH,
+        const Vec3& worldPos,
+        const Vec2& body,
+        f32 padRadius,
+        const Vec3& vector,
+        u32 color);
+
     modules::newton_mechanics::NewtonSystem& system_;
     interfaces::backend::IRenderer& renderer_;
 
