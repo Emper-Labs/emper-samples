@@ -3,7 +3,7 @@
 #include <emper/interfaces/backend/IRenderer.h>
 #include <emper/interfaces/render-pass/IRenderPass.h>
 
-#include <emper/modules/newton_mechanics/NewtonSystem.h>
+#include <emper/modules/classical-mechanics/ClassicalMechanicsSystem.h>
 
 namespace emper::sample
 {
@@ -63,7 +63,7 @@ class ParticleRenderPass final
 {
 public:
     ParticleRenderPass(
-        modules::newton_mechanics::NewtonSystem& system,
+        modules::classical_mechanics::ClassicalMechanicsSystem& system,
         interfaces::backend::IRenderer& renderer);
 
     ~ParticleRenderPass() override;
@@ -92,7 +92,7 @@ private:
         const Vec3& vector,
         u32 color);
 
-    modules::newton_mechanics::NewtonSystem& system_;
+    modules::classical_mechanics::ClassicalMechanicsSystem& system_;
     interfaces::backend::IRenderer& renderer_;
 
     ParticleCamera camera_{};

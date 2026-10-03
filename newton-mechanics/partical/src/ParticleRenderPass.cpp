@@ -304,7 +304,7 @@ void ParticleRenderPass::handleNativeEvent(
 }
 
 ParticleRenderPass::ParticleRenderPass(
-    modules::newton_mechanics::NewtonSystem& system,
+    modules::classical_mechanics::ClassicalMechanicsSystem& system,
     interfaces::backend::IRenderer& renderer)
     : system_(system),
       renderer_(renderer)

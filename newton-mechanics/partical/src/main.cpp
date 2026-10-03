@@ -1,6 +1,6 @@
 #include "ParticleRenderPass.h"
 #include "SDLOpenGLRenderer.h"
-#include "emper/modules/newton_mechanics/NewtonSystem.h"
+#include "emper/modules/classical-mechanics/ClassicalMechanicsSystem.h"
 #include "emper/simulation/Simulation.h"
 
 #include <cmath>
@@ -8,7 +8,7 @@
 
 using namespace emper;
 using namespace emper::simulation;
-using namespace emper::modules::newton_mechanics;
+using namespace emper::modules::classical_mechanics;
 
 namespace
 {
@@ -30,7 +30,7 @@ constexpr Scenario scenario = Scenario::SolarSystem;
 // Single particle
 // ------------------------------------------------------------
 
-void addSingle(NewtonSystem& system)
+void addSingle(ClassicalMechanicsSystem& system)
 {
     system.addObject({
         { 0.0f, 0.0f, 0.0f },
@@ -44,7 +44,7 @@ void addSingle(NewtonSystem& system)
 // Binary system
 // ------------------------------------------------------------
 
-void addBinary(NewtonSystem& system)
+void addBinary(ClassicalMechanicsSystem& system)
 {
     system.addObject({
         { -1.0f, 0.0f, 0.0f },
@@ -65,7 +65,7 @@ void addBinary(NewtonSystem& system)
 // Three-body system
 // ------------------------------------------------------------
 
-void addThreeBody(NewtonSystem& system)
+void addThreeBody(ClassicalMechanicsSystem& system)
 {
     system.addObject({
         { -1.0f, 0.0f, 0.0f },
@@ -93,7 +93,7 @@ void addThreeBody(NewtonSystem& system)
 // Random particles
 // ------------------------------------------------------------
 
-void addRandom(NewtonSystem& system, int count)
+void addRandom(ClassicalMechanicsSystem& system, int count)
 {
     std::mt19937 rng(42);
 
@@ -141,7 +141,7 @@ constexpr Planet planets[] =
     { 5.151e-5f, 30.060f }  // Neptune
 };
 
-void addSolarSystem(NewtonSystem& system)
+void addSolarSystem(ClassicalMechanicsSystem& system)
 {
     constexpr f32 sunMass = 1.0f;
 
@@ -170,7 +170,7 @@ void addSolarSystem(NewtonSystem& system)
 // Scenario selection
 // ------------------------------------------------------------
 
-void setupScenario(NewtonSystem& system)
+void setupScenario(ClassicalMechanicsSystem& system)
 {
     switch (scenario)
     {
@@ -202,12 +202,12 @@ auto main() -> int
 {
     Simulation simulation;
 
-    NewtonSystem newtonSystem(
+    ClassicalMechanicsSystem ClassicalMechanicsSystem(
         simulation.world(),
         G
     );
 
-    setupScenario(newtonSystem);
+    setupScenario(ClassicalMechanicsSystem);
 
     emper::backend::SDLOpenGLRenderer renderer(
         "Emper - Newton Mechanics (particles) 3D",
@@ -219,10 +219,10 @@ auto main() -> int
         return 1;
 
     simulation.setRenderer(renderer);
-    simulation.addSystem(newtonSystem);
+    simulation.addSystem(ClassicalMechanicsSystem);
 
     emper::sample::ParticleRenderPass renderPass(
-        newtonSystem,
+        ClassicalMechanicsSystem,
         renderer
     );
 
