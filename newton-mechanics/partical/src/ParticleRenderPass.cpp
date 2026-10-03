@@ -19,24 +19,159 @@ constexpr f32 kGridStep = 1.0f;
 constexpr int kGridLines = 2 * static_cast<int>(kGridHalf / kGridStep) + 1;
 }
 
+ParticleCamera::ParticleCamera()
+{
+    // Initial camera:
+    //
+    // target = (0, 0, 0)
+    // distance = 10
+    // yaw = 0
+    // pitch = 0
+    //
+    // Camera therefore starts at:
+    //
+    // (0, 0, 10)
+
+    updatePosition();
+}
+
 float ParticleCamera::focal(float screenHeight) const
 {
     return (screenHeight * 0.5f) /
         std::tan((fov * 0.5f) * (kPi / 180.0f));
 }
 
+Vec3 ParticleCamera::forward() const
+{
+    const f32 cp = std::cos(pitch);
+
+    return {
+        -cp * std::sin(yaw),
+        std::sin(pitch),
+        -cp * std::cos(yaw)
+    };
+}
+
 Vec3 ParticleCamera::right() const
 {
-    return { std::cos(yaw), 0.0f, std::sin(yaw) };
+    return {
+        std::cos(yaw),
+        0.0f,
+        -std::sin(yaw)
+    };
 }
 
 Vec3 ParticleCamera::up() const
 {
+    const Vec3 r = right();
+    const Vec3 f = forward();
+
     return {
-        -std::sin(pitch) * std::sin(yaw),
-         std::cos(pitch),
-         std::sin(pitch) * std::cos(yaw)
+        r.y * f.z - r.z * f.y,
+        r.z * f.x - r.x * f.z,
+        r.x * f.y - r.y * f.x
     };
+}
+
+void ParticleCamera::updatePosition()
+{
+    const Vec3 f = forward();
+
+    position = {
+        target.x - f.x * distance,
+        target.y - f.y * distance,
+        target.z - f.z * distance
+    };
+}
+
+void ParticleCamera::orbit(f32 dyaw, f32 dpitch)
+{
+    yaw += dyaw;
+    pitch += dpitch;
+
+    const f32 maxPitch = 89.0f * (kPi / 180.0f);
+
+    pitch = std::clamp(
+        pitch,
+        -maxPitch,
+        maxPitch
+    );
+
+    updatePosition();
+}
+
+void ParticleCamera::pan(
+    f32 dxScreen,
+    f32 dyScreen,
+    f32 screenHeight)
+{
+    if (screenHeight <= 0.0f)
+        return;
+
+    /*
+     * Perspective projection:
+     *
+     *     screen = world * focal / depth
+     *
+     * Therefore approximately:
+     *
+     *     worldPerPixel = distance / focal
+     *
+     * This makes pan speed depend on camera distance.
+     */
+
+    const f32 f = focal(screenHeight);
+
+    if (f <= 0.0f)
+        return;
+
+    const f32 worldPerPixel = distance / f;
+
+    const Vec3 r = right();
+    const Vec3 u = up();
+
+    const Vec3 delta = {
+        r.x * dxScreen * worldPerPixel +
+            u.x * dyScreen * worldPerPixel,
+
+        r.y * dxScreen * worldPerPixel +
+            u.y * dyScreen * worldPerPixel,
+
+        r.z * dxScreen * worldPerPixel +
+            u.z * dyScreen * worldPerPixel
+    };
+
+    position.x += delta.x;
+    position.y += delta.y;
+    position.z += delta.z;
+
+    target.x += delta.x;
+    target.y += delta.y;
+    target.z += delta.z;
+}
+
+void ParticleCamera::zoom(f32 factor)
+{
+    if (factor <= 0.0f)
+        return;
+
+    /*
+     * factor > 1:
+     *     zoom in
+     *
+     * factor < 1:
+     *     zoom out
+     */
+
+    distance /= factor;
+
+    distance = std::clamp(
+        distance,
+        kMinDistance,
+        kMaxDistance
+    );
+
+    updatePosition();
 }
 
 bool ParticleCamera::project(
@@ -51,88 +186,49 @@ bool ParticleCamera::project(
         world.z - position.z
     };
 
-    // Transform the world point into camera space by rotating -yaw around Y
-    // then -pitch around X. The camera looks down its -Z axis.
-    const f32 cy = std::cos(-yaw);
-    const f32 sy = std::sin(-yaw);
-    const f32 x1 = t.x * cy + t.z * sy;
-    const f32 y1 = t.y;
-    const f32 z1 = -t.x * sy + t.z * cy;
+    /*
+     * Camera basis:
+     *
+     * right
+     * up
+     * forward
+     *
+     * Camera looks along -Z in camera space.
+     */
 
-    const f32 cp = std::cos(-pitch);
-    const f32 sp = std::sin(-pitch);
-    const f32 x2 = x1;
-    const f32 y2 = y1 * cp - z1 * sp;
-    const f32 z2 = y1 * sp + z1 * cp;
+    const Vec3 r = right();
+    const Vec3 u = up();
+    const Vec3 f = forward();
+
+    const f32 x2 =
+        t.x * r.x +
+        t.y * r.y +
+        t.z * r.z;
+
+    const f32 y2 =
+        t.x * u.x +
+        t.y * u.y +
+        t.z * u.z;
+
+    const f32 z2 =
+        (t.x * f.x +
+          t.y * f.y +
+          t.z * f.z);
 
     if (z2 <= 0.001f)
         return false;
 
-    const f32 f = focal(screenH);
+    const f32 focalLength = focal(screenH);
+
     out = {
-        screenW * 0.5f + (x2 * f) / z2,
-        screenH * 0.5f - (y2 * f) / z2
+        screenW * 0.5f +
+            (x2 * focalLength) / z2,
+
+        screenH * 0.5f -
+            (y2 * focalLength) / z2
     };
+
     return true;
-}
-
-void ParticleCamera::orbit(f32 dyaw, f32 dpitch)
-{
-    yaw += dyaw;
-    pitch += dpitch;
-
-    const f32 maxPitch = 89.0f * (kPi / 180.0f);
-    pitch = std::clamp(pitch, -maxPitch, maxPitch);
-}
-
-void ParticleCamera::pan(f32 dxScreen, f32 dyScreen)
-{
-    const f32 scale = 0.003f;
-    const Vec3 r = right();
-    const Vec3 u = up();
-
-    position.x += r.x * dxScreen * scale;
-    position.y += r.y * dxScreen * scale;
-    position.z += r.z * dxScreen * scale;
-
-    position.x -= u.x * dyScreen * scale;
-    position.y -= u.y * dyScreen * scale;
-    position.z -= u.z * dyScreen * scale;
-}
-
-void ParticleCamera::zoom(f32 factor)
-{
-    fov = std::clamp(fov / factor, 2.0f, 160.0f);
-}
-
-ParticleRenderPass::ParticleRenderPass(
-    modules::newton_mechanics::NewtonSystem& system,
-    interfaces::backend::IRenderer& renderer)
-    : system_(system),
-      renderer_(renderer)
-{
-    auto* eventSource =
-        dynamic_cast<interfaces::behavior::INativeEventSource*>(&renderer_);
-
-    if (eventSource)
-    {
-        eventSource_ = eventSource;
-        eventSource_->setEventCallback(
-            [this](const void* nativeEvent)
-            {
-                handleNativeEvent(nativeEvent);
-            }
-        );
-    }
-}
-
-ParticleRenderPass::~ParticleRenderPass()
-{
-    if (eventSource_)
-    {
-        eventSource_->setEventCallback(nullptr);
-        eventSource_ = nullptr;
-    }
 }
 
 void ParticleRenderPass::handleNativeEvent(
@@ -189,7 +285,8 @@ void ParticleRenderPass::handleNativeEvent(
         {
             camera_.pan(
                 current.x - lastMouse_.x,
-                current.y - lastMouse_.y
+                current.y - lastMouse_.y,
+                static_cast<f32>(renderer_.windowHeight())
             );
         }
 
@@ -203,6 +300,36 @@ void ParticleRenderPass::handleNativeEvent(
 
     default:
         break;
+    }
+}
+
+ParticleRenderPass::ParticleRenderPass(
+    modules::newton_mechanics::NewtonSystem& system,
+    interfaces::backend::IRenderer& renderer)
+    : system_(system),
+      renderer_(renderer)
+{
+    auto* eventSource =
+        dynamic_cast<interfaces::behavior::INativeEventSource*>(&renderer_);
+
+    if (eventSource)
+    {
+        eventSource_ = eventSource;
+        eventSource_->setEventCallback(
+            [this](const void* nativeEvent)
+            {
+                handleNativeEvent(nativeEvent);
+            }
+        );
+    }
+}
+
+ParticleRenderPass::~ParticleRenderPass()
+{
+    if (eventSource_)
+    {
+        eventSource_->setEventCallback(nullptr);
+        eventSource_ = nullptr;
     }
 }
 
@@ -411,15 +538,6 @@ void ParticleRenderPass::render(
             p.acceleration, accelColor
         );
     }
-
-    renderer.drawText(
-        std::to_string(particles.size()) + " particles | fov " +
-            std::to_string(static_cast<int>(camera_.fov)),
-        10.0f,
-        10.0f,
-        15.0f,
-        0xFFFFFFFF
-    );
 
     renderer.drawText(
         "orange: velocity | magenta: acceleration",
