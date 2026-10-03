@@ -341,13 +341,28 @@ void ParticleRenderPass::drawWorld(
     // Reference grid on the y=0 plane (world XZ plane).
     const u32 gridColor = 0x606060FF;
 
-    for (int i = 0; i < kGridLines; ++i)
-    {
-        const f32 v = -kGridHalf + i * kGridStep;
+for (int i = 0; i < kGridLines; ++i)
+{
+    const f32 v = -kGridHalf + i * kGridStep;
 
+    // XZ plane (Y = 0)
+    {
         Vec2 a, b;
-        const bool va = camera_.project({ v, 0.0f, -kGridHalf }, screenW, screenH, a);
-        const bool vb = camera_.project({ v, 0.0f,  kGridHalf }, screenW, screenH, b);
+
+        const bool va = camera_.project(
+            { v, 0.0f, -kGridHalf },
+            screenW,
+            screenH,
+            a
+        );
+
+        const bool vb = camera_.project(
+            { v, 0.0f, kGridHalf },
+            screenW,
+            screenH,
+            b
+        );
+
         if (va && vb)
         {
             renderer.drawLine(
@@ -356,20 +371,145 @@ void ParticleRenderPass::drawWorld(
                 gridColor
             );
         }
+    }
 
-        Vec2 c, d;
-        const bool vc = camera_.project({ -kGridHalf, 0.0f, v }, screenW, screenH, c);
-        const bool vd = camera_.project({  kGridHalf, 0.0f, v }, screenW, screenH, d);
-        if (vc && vd)
+    {
+        Vec2 a, b;
+
+        const bool va = camera_.project(
+            { -kGridHalf, 0.0f, v },
+            screenW,
+            screenH,
+            a
+        );
+
+        const bool vb = camera_.project(
+            { kGridHalf, 0.0f, v },
+            screenW,
+            screenH,
+            b
+        );
+
+        if (va && vb)
         {
             renderer.drawLine(
-                c.x, screenH - c.y,
-                d.x, screenH - d.y,
+                a.x, screenH - a.y,
+                b.x, screenH - b.y,
                 gridColor
             );
         }
     }
 
+    // XY plane (Z = 0)
+    {
+        Vec2 a, b;
+
+        const bool va = camera_.project(
+            { v, -kGridHalf, 0.0f },
+            screenW,
+            screenH,
+            a
+        );
+
+        const bool vb = camera_.project(
+            { v, kGridHalf, 0.0f },
+            screenW,
+            screenH,
+            b
+        );
+
+        if (va && vb)
+        {
+            renderer.drawLine(
+                a.x, screenH - a.y,
+                b.x, screenH - b.y,
+                gridColor
+            );
+        }
+    }
+
+    {
+        Vec2 a, b;
+
+        const bool va = camera_.project(
+            { -kGridHalf, v, 0.0f },
+            screenW,
+            screenH,
+            a
+        );
+
+        const bool vb = camera_.project(
+            { kGridHalf, v, 0.0f },
+            screenW,
+            screenH,
+            b
+        );
+
+        if (va && vb)
+        {
+            renderer.drawLine(
+                a.x, screenH - a.y,
+                b.x, screenH - b.y,
+                gridColor
+            );
+        }
+    }
+
+    // YZ plane (X = 0)
+    {
+        Vec2 a, b;
+
+        const bool va = camera_.project(
+            { 0.0f, v, -kGridHalf },
+            screenW,
+            screenH,
+            a
+        );
+
+        const bool vb = camera_.project(
+            { 0.0f, v, kGridHalf },
+            screenW,
+            screenH,
+            b
+        );
+
+        if (va && vb)
+        {
+            renderer.drawLine(
+                a.x, screenH - a.y,
+                b.x, screenH - b.y,
+                gridColor
+            );
+        }
+    }
+
+    {
+        Vec2 a, b;
+
+        const bool va = camera_.project(
+            { 0.0f, -kGridHalf, v },
+            screenW,
+            screenH,
+            a
+        );
+
+        const bool vb = camera_.project(
+            { 0.0f, kGridHalf, v },
+            screenW,
+            screenH,
+            b
+        );
+
+        if (va && vb)
+        {
+            renderer.drawLine(
+                a.x, screenH - a.y,
+                b.x, screenH - b.y,
+                gridColor
+            );
+        }
+    }
+}
     // World coordinate axes: X red, Y green, Z blue.
     const Vec3 axes[3] = {
         { kGridHalf, 0.0f, 0.0f },
